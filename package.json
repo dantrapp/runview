@@ -17,7 +17,8 @@
     "check": "tsc --noEmit && oxlint --react-plugin --jsx-a11y-plugin --deny-warnings src tests scripts",
     "format": "prettier --write src tests scripts *.json *.ts *.html *.md .github",
     "cli": "node dist-cli/index.js",
-    "test:cli": "node scripts/smoke-cli.mjs"
+    "test:cli": "node scripts/smoke-cli.mjs",
+    "test:overseer": "node scripts/test-overseer.mjs"
   },
   "dependencies": {
     "lucide-react": "1.52.0",

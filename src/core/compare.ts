@@ -5,6 +5,7 @@ export type Change =
   | "regressed"
   | "recovered"
   | "expectation"
+  | "operation"
   | "added"
   | "unobserved"
   | "absent"
@@ -96,7 +97,8 @@ export function compareAssertions(
     if (a && !b)
       changes.push(after?.status === "passed" ? "absent" : "unobserved");
     if (a && b) {
-      if (canonical(expectation(a)) !== canonical(expectation(b)))
+      if (a.operation._tag !== b.operation._tag) changes.push("operation");
+      else if (canonical(expectation(a)) !== canonical(expectation(b)))
         changes.push("expectation");
       if (a.outcome._tag === "Passed" && b.outcome._tag === "Failed")
         changes.push("regressed");
@@ -208,7 +210,8 @@ export function compareRuns(before: Run | undefined, after: Run): Comparison {
 export const labels: Record<Change, string> = {
   regressed: "New failure",
   recovered: "Recovered",
-  expectation: "Expectation changed",
+  expectation: "Expected data changed",
+  operation: "Assertion operation changed",
   added: "First observed",
   unobserved: "Not reached",
   absent: "Not recorded",

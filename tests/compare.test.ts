@@ -46,13 +46,38 @@ describe("evidence comparisons", () => {
       ["absent"],
     );
   });
-  it("flags weakened or otherwise changed expectations even when both runs pass", () => {
+  it("flags changed expected data even when both runs pass", () => {
     const before = fixture(),
       after = fixture("next");
     finished(after).assertions[0]!.operation = {
       _tag: "Equal",
       actual: 403,
       expected: 403,
+    };
+    expect(compareRuns(before, after).tests[0]!.assertions[0]!.changes).toEqual(
+      ["expectation"],
+    );
+  });
+  it("distinguishes a recorded operator change from generated data changing", () => {
+    const before = fixture(),
+      after = fixture("next");
+    finished(after).assertions[0]!.operation = {
+      _tag: "OneOf",
+      actual: 200,
+      expected: [200, 500],
+    };
+    expect(compareRuns(before, after).tests[0]!.assertions[0]!.changes).toEqual(
+      ["operation"],
+    );
+    finished(before).assertions[0]!.operation = {
+      _tag: "Equal",
+      actual: "workspace_a",
+      expected: "workspace_a",
+    };
+    finished(after).assertions[0]!.operation = {
+      _tag: "Equal",
+      actual: "workspace_b",
+      expected: "workspace_b",
     };
     expect(compareRuns(before, after).tests[0]!.assertions[0]!.changes).toEqual(
       ["expectation"],

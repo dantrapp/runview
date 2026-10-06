@@ -85,6 +85,7 @@ export function exportEvidence(
         const expected = references.get(ref.id);
         if (!expected || canonical(expected) !== canonical(ref))
           throw new Error("Artifact metadata does not match its run snapshot.");
+        references.delete(ref.id);
         if (
           ref.byteLength > MAX_ARTIFACT_BYTES ||
           bytes + ref.byteLength * 1.4 > MAX_IMPORT_BYTES * 0.8
@@ -128,6 +129,11 @@ export function exportEvidence(
               : "file unavailable";
           bundle.warnings.push(`Artifact ${ref.name} omitted: ${reason}.`);
         }
+      }
+      for (const ref of references.values()) {
+        bundle.warnings.push(
+          `Artifact ${ref.name} (${run.id}, ${ref.id}) omitted: storage record missing for this run.`,
+        );
       }
     }
     database.exec("COMMIT");

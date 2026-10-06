@@ -18,7 +18,11 @@ function AssertionRow({ delta }: { delta: AssertionDelta }) {
       ? delta.after.outcome.error
       : undefined;
   const [open, setOpen] = useState(
-    Boolean(failure || delta.changes.includes("expectation")),
+    Boolean(
+      failure ||
+      delta.changes.includes("expectation") ||
+      delta.changes.includes("operation"),
+    ),
   );
   if (!assertion) return null;
   return (
@@ -76,6 +80,20 @@ function AssertionRow({ delta }: { delta: AssertionDelta }) {
               <Value value={observation(assertion)} />
             </section>
           </div>
+          {delta.changes.includes("expectation") && (
+            <p className="muted">
+              Expected operands differ. Generated IDs, timestamps, and fixture
+              values can change between healthy runs; this alone does not
+              establish a changed test rule.
+            </p>
+          )}
+          {delta.changes.includes("operation") && (
+            <p className="muted">
+              Recorded operation: <code>{delta.before?.operation._tag}</code> →{" "}
+              <code>{delta.after?.operation._tag}</code>. Compare both
+              expectations before accepting the result.
+            </p>
+          )}
           {delta.before && delta.after && (
             <details className="previous">
               <summary>

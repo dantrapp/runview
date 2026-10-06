@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { demo } from "../core/demo.ts";
+import upstreamProbeData from "../../examples/overseer-probe.json";
 import { mergeBundles } from "../core/import.ts";
 import { latest, MAX_IMPORT_BYTES, parseEvidence } from "../core/evidence.ts";
 import type { Bundle } from "../core/evidence.ts";
@@ -18,9 +19,14 @@ import { SourceEvidence } from "./Evidence.tsx";
 import { TestDetail } from "./TestDetail.tsx";
 import { Changes, download, duration, Status, time } from "./shared.tsx";
 
+const upstreamProbe = parseEvidence(JSON.stringify(upstreamProbeData));
+
 export function App() {
   const [bundle, setBundle] = useState<Bundle>(demo);
-  const [sample, setSample] = useState(true);
+  const [origin, setOrigin] = useState<"sample" | "probe" | "imported">(
+    "sample",
+  );
+  const sample = origin !== "imported";
   const [currentId, setCurrentId] = useState(demo.runs[0]?.run.id);
   const [baselineId, setBaselineId] = useState(demo.runs[1]?.run.id ?? "");
   const [selected, setSelected] = useState("");
@@ -63,7 +69,7 @@ export function App() {
       );
       const checked = mergeBundles([...(sample ? [] : [bundle]), ...incoming]);
       setBundle(checked);
-      setSample(false);
+      setOrigin("imported");
       setCurrentId(checked.runs[0]?.run.id);
       setBaselineId(checked.runs[1]?.run.id ?? "");
       setSelected("");
@@ -78,14 +84,16 @@ export function App() {
       if (input.current) input.current.value = "";
     }
   }
-  function reset() {
-    setBundle(demo);
-    setSample(true);
-    setCurrentId(demo.runs[0]?.run.id);
-    setBaselineId(demo.runs[1]?.run.id ?? "");
+  function loadExample(kind: "sample" | "probe") {
+    const data = kind === "sample" ? demo : upstreamProbe;
+    setBundle(data);
+    setOrigin(kind);
+    setCurrentId(data.runs[0]?.run.id);
+    setBaselineId(data.runs[1]?.run.id ?? "");
     setSelected("");
     setError("");
     setQuery("");
+    setFilter("all");
   }
   function exportReport() {
     download(
@@ -97,6 +105,7 @@ export function App() {
               format: "runview-comparison",
               version: 1,
               sample,
+              evidenceOrigin: origin,
               exportedAt: new Date().toISOString(),
               baseline: baseline ?? null,
               current,
@@ -174,7 +183,10 @@ export function App() {
           </div>
         </div>
         {!sample && (
-          <button className="clear-button" onClick={reset}>
+          <button
+            className="clear-button"
+            onClick={() => loadExample("sample")}
+          >
             <X size={13} />
             Clear imports
           </button>
@@ -193,11 +205,23 @@ export function App() {
         {sample && (
           <div className="sample-banner">
             <FlaskConical size={16} aria-hidden="true" />
-            <strong>Sample evidence</strong>
+            <strong>
+              {origin === "probe"
+                ? "Upstream integration probe"
+                : "Sample evidence"}
+            </strong>
             <span>
-              Synthetic runs demonstrate a regression, changed expectation, and
-              skipped test.
+              {origin === "probe"
+                ? "Recorded by Overseer’s evidence modules with controlled inputs. No API deployment or trace export."
+                : "Synthetic runs demonstrate a regression, changed expected data, and skipped test."}
             </span>
+            <button
+              onClick={() =>
+                loadExample(origin === "probe" ? "sample" : "probe")
+              }
+            >
+              {origin === "probe" ? "Load sample" : "Load upstream probe"}
+            </button>
           </div>
         )}
         {error && (

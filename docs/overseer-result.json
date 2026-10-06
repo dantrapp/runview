@@ -1,0 +1,46 @@
+{
+  "upstreamRevision": "9810d13bb930144ba92a00bc99401fcb886cb8e7",
+  "environment": {
+    "node": "v25.2.1",
+    "effect": "4.0.0-rc.112",
+    "upstreamLockfileSha256": "f100b4d4d2fa3d78425ab450340005d268f2167935711343bca170f3213337b1"
+  },
+  "scope": "Unmodified upstream assertion, recording, schema, lifecycle, and SQLite modules; controlled probe inputs; no API deployment or trace export",
+  "baselineStatus": "passed",
+  "candidateStatus": "failed",
+  "assertionsRecorded": [
+    {
+      "run": "test-run_runview-probe-candidate",
+      "count": 9
+    },
+    {
+      "run": "test-run_runview-probe-baseline",
+      "count": 10
+    }
+  ],
+  "verifiedArtifactBodies": 8,
+  "databaseUnchangedByExport": true,
+  "historicalArtifactRowsMissing": 4,
+  "comparisons": [
+    {
+      "name": "Probe: stable response policy",
+      "status": "passed",
+      "changes": ["operation"]
+    },
+    {
+      "name": "Probe: fail-fast persistence checks",
+      "status": "failed",
+      "changes": ["regressed", "unobserved"]
+    },
+    {
+      "name": "Probe: generated data across healthy runs",
+      "status": "passed",
+      "changes": ["expectation"]
+    },
+    {
+      "name": "Probe: grouped and eventual assertions",
+      "status": "passed",
+      "changes": []
+    }
+  ]
+}

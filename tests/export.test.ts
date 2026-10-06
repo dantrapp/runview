@@ -26,6 +26,17 @@ afterEach(() => {
 });
 
 describe("read-only SQLite adapter", () => {
+  it("warns when a snapshot references an artifact whose storage row no longer belongs to the run", () => {
+    const root = temporary();
+    database(root, fixture());
+    const db = new DatabaseSync(join(root, "test-runs.sqlite"));
+    db.prepare("UPDATE test_artifacts SET run_id = ?").run("another-run");
+    db.close();
+    const bundle = exportEvidence(root, { includeArtifacts: true });
+    expect(bundle.artifacts).toEqual([]);
+    expect(bundle.warnings).toHaveLength(1);
+    expect(bundle.warnings[0]).toContain("storage record missing for this run");
+  });
   it("exports a snapshot and verified blob without changing the database", () => {
     const root = temporary(),
       run = fixture();

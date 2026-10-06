@@ -501,6 +501,7 @@ main {
   background: #fbece8;
 }
 .change.expectation,
+.change.operation,
 .change.ambiguous {
   color: var(--amber);
   background: #f6eedb;

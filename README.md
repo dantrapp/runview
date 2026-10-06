@@ -1,6 +1,6 @@
 # Runview
 
-Inspect and compare [Overseer](https://github.com/dmmulroy/overseer) test evidence locally. Review assertions, changed expectations, retry attempts, artifact contents, and trace references across runs.
+Inspect and compare [Overseer](https://github.com/dmmulroy/overseer) test evidence locally. Review assertions, changed assertion operations and expected data, retry attempts, artifact contents, and trace references across runs.
 
 Runview reads existing evidence. It does not run assertions again, generate verdicts with a model, or upload imported files. No API key is required.
 
@@ -14,7 +14,7 @@ npm run build
 node dist-cli/index.js serve
 ```
 
-Open `http://127.0.0.1:4318`. The initial screen contains **synthetic sample evidence**, including a failed read, a changed expectation in a passing test, and a skipped test. Importing a file replaces the samples. Further imports add runs; importing the same run ID replaces its snapshot and artifact bodies. Reloading the page clears all imported evidence.
+Open `http://127.0.0.1:4318`. The initial screen contains **synthetic sample evidence**, including a failed read, a changed expectation in a passing test, and a skipped test. Importing a file replaces the samples. Select **Load upstream probe** to inspect records produced by Overseer’s actual evidence modules with controlled inputs. Further imports add runs; importing the same run ID replaces its snapshot and artifact bodies. Reloading the page clears all imported evidence.
 
 For development, use `npm run dev`.
 
@@ -31,7 +31,7 @@ node dist-cli/index.js export \
 
 Select **Import evidence** in the workbench and choose the exported file. Raw serialized Overseer run JSON is also accepted. Multiple files can be imported together.
 
-The exporter opens `test-runs.sqlite` read-only. It reads the latest 20 runs by default; `--limit` accepts 1–100. Artifact bodies are omitted unless `--artifacts` is set. Included bodies are resolved from `blobs/<sha256>` and checked against their declared size and SHA-256. Database `content_path` values are never followed. Missing, corrupt, oversized, or externally linked blobs produce export warnings.
+The exporter opens `test-runs.sqlite` read-only. It reads the latest 20 runs by default; `--limit` accepts 1–100. Artifact bodies are omitted unless `--artifacts` is set. Included bodies are resolved from `blobs/<sha256>` and checked against their declared size and SHA-256. Database `content_path` values are never followed. Referenced artifacts without a matching storage row produce an explicit warning. At the validated upstream revision, reused execution IDs can replace earlier runs’ artifact records; [the integration check reproduces this](docs/overseer-integration.md#historical-artifact-availability). Export each run immediately with `--artifacts --limit 1` to retain its current bodies. Missing, corrupt, oversized, or externally linked blobs produce export warnings.
 
 Limits are 32 MiB per imported collection, 4 MiB per exported artifact, and 100 runs. Output files are created with owner-only permissions and existing output paths are refused. Evidence can contain application data, logs, and secrets; exported JSON retains those contents.
 
@@ -55,21 +55,22 @@ The digest covers tracked and non-ignored untracked files, executable bits, dele
 
 ## Comparison rules
 
-| Evidence                                                  | Review behavior                                                |
-| --------------------------------------------------------- | -------------------------------------------------------------- |
-| Previously passing assertion fails                        | New failure                                                    |
-| Previously failing assertion passes                       | Recovered                                                      |
-| Operation or expected value changes                       | Expectation changed, even if the assertion passes              |
-| Assertion missing after an incomplete or failed execution | Not reached; no deletion claim                                 |
-| Assertion absent from a passed execution                  | Not recorded; no source deletion claim                         |
-| Duplicate test names or assertion identities              | Ambiguous match; records stay separate                         |
-| Multiple attempts                                         | Latest attempt in summary; earlier attempts remain inspectable |
-| Local versus deployed runs                                | Comparison disabled                                            |
-| Different stage names                                     | Comparison permitted with an environment warning               |
+| Evidence                                                  | Review behavior                                                              |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Previously passing assertion fails                        | New failure                                                                  |
+| Previously failing assertion passes                       | Recovered                                                                    |
+| Assertion operator changes                                | Assertion operation changed, even if the assertion passes                    |
+| Expected operands change                                  | Expected data changed; generated values may vary without a changed test rule |
+| Assertion missing after an incomplete or failed execution | Not reached; no deletion claim                                               |
+| Assertion absent from a passed execution                  | Not recorded; no source deletion claim                                       |
+| Duplicate test names or assertion identities              | Ambiguous match; records stay separate                                       |
+| Multiple attempts                                         | Latest attempt in summary; earlier attempts remain inspectable               |
+| Local versus deployed runs                                | Comparison disabled                                                          |
+| Different stage names                                     | Comparison permitted with an environment warning                             |
 
 Tests match by exact name. Assertions match by group path and description. Run-scoped IDs and sequence numbers are not treated as stable cross-run identities. Renamed tests appear as separate records. Missing records describe the available evidence, not the contents of the source code.
 
-Operations retain their structured values. Runview separates recorded observations from expectations; it does not re-evaluate operations. Unknown operation fields remain visible and participate in expectation comparison. Tests with failed assertion records or multiple attempts remain in **To review**, even if the runner reports a pass. A “passed” label reflects the imported runner result, not an independent certification of correctness.
+Operations retain their structured values. Runview separates recorded observations from expectations; it does not re-evaluate operations. Generated IDs and timestamps can change expected operands between healthy runs; Runview does not infer a changed test rule from that alone. Unknown operation fields remain visible and participate in expectation comparison. Tests with failed assertion records or multiple attempts remain in **To review**, even if the runner reports a pass. A “passed” label reflects the imported runner result, not an independent certification of correctness.
 
 Text artifacts preview as escaped text. Other artifact types can be downloaded; HTML, SVG, and scripts are never executed inside a preview. Artifact bytes are checked again before preview or download. A matching digest detects corruption, not authenticity. Trace references show the provider, dataset, and trace ID; Runview does not fetch spans or claim to display a trace waterfall.
 
@@ -84,7 +85,7 @@ The adapter targets Overseer's SQLite schema v2 and serialized evidence contract
 - `apps/api/test/e2e/evidence/test-assertion.ts`
 - `apps/api/test/e2e/evidence/test-artifact.ts`
 
-Runview is a separate implementation. It does not import or distribute Overseer code. The MIT license applies to Runview's code, not the upstream repository.
+Runview is a separate implementation. Its application does not bundle Overseer code. The optional integration check imports upstream modules from a separate checkout. The MIT license applies to Runview's code, not the upstream repository.
 
 ```sh
 npm run check
@@ -93,6 +94,6 @@ npm run build
 npm run test:cli
 ```
 
-Tests cover comparison semantics, malformed evidence, artifact integrity and path containment, read-only export, source observations, escaped rendering, and loopback serving. The compiled CLI smoke test creates a temporary Git checkout and SQLite database, records a command, exports evidence, and checks exit-code and source-window behavior. These are independently constructed contract fixtures; a live Overseer service run has not been used for validation.
+Tests cover comparison semantics, malformed evidence, artifact integrity and path containment, read-only export, source observations, escaped rendering, and loopback serving. The compiled CLI smoke test creates a temporary Git checkout and SQLite database, records a command, exports evidence, and checks exit-code and source-window behavior. The upstream integration check also executes Overseer’s unmodified assertion, recording, schema, lifecycle, and SQLite modules. It verifies two controlled runs with 19 assertions and 8 artifact bodies captured before subsequent writes. See [integration results and reproduction commands](docs/overseer-integration.md). The full deployed API acceptance suite was not run.
 
 The production server binds only to `127.0.0.1`, serves the built UI, and blocks network connections from the page with Content Security Policy. The app has no persistence, analytics, model calls, or backend evidence upload endpoint.
