@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dist-cli/
+coverage/
+.env*
+*.local
+*.runview.json
+*.sqlite*
+evidence/
+.DS_Store

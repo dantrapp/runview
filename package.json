@@ -1,0 +1,40 @@
+{
+  "name": "runview",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Inspect and compare Overseer test evidence locally.",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "bin": {
+    "runview": "dist-cli/index.js"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build && node scripts/build-cli.mjs",
+    "test": "vitest run",
+    "check": "tsc --noEmit && oxlint --react-plugin --jsx-a11y-plugin --deny-warnings src tests scripts",
+    "format": "prettier --write src tests scripts *.json *.ts *.html *.md .github",
+    "cli": "node dist-cli/index.js",
+    "test:cli": "node scripts/smoke-cli.mjs"
+  },
+  "dependencies": {
+    "lucide-react": "1.52.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "esbuild": "0.28.2",
+    "oxlint": "1.87.0",
+    "prettier": "3.9.9",
+    "typescript": "7.0.2",
+    "vite": "8.3.3",
+    "vitest": "4.1.11"
+  }
+}

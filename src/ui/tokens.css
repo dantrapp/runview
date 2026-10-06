@@ -1,0 +1,12 @@
+:root {
+  --canvas: #f5f6f1;
+  --paper: #fdfefb;
+  --ink: #2a352c;
+  --muted: #778070;
+  --line: #dfe4d8;
+  --sidebar: #26312a;
+  --green: #437253;
+  --red: #a54f37;
+  --amber: #927232;
+  color-scheme: light;
+}
