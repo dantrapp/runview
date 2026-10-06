@@ -16,6 +16,8 @@ node dist-cli/index.js serve
 
 Open `http://127.0.0.1:4318`. The initial screen contains **synthetic sample evidence**, including a failed read, a changed expectation in a passing test, and a skipped test. Importing a file replaces the samples. Select **Load upstream probe** to inspect records produced by Overseer’s actual evidence modules with controlled inputs. Further imports add runs; importing the same run ID replaces its snapshot and artifact bodies. Reloading the page clears all imported evidence.
 
+The test list opens on **To review**, with failures first. **All tests** includes unchanged results. Within a test, changed or failed assertions appear first; **All** shows the remaining assertions. Changed expectations are shown side by side. Run details, saved files, and trace references can be expanded when needed.
+
 For development, use `npm run dev`.
 
 ## Import Overseer evidence

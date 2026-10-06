@@ -149,22 +149,21 @@ export function TraceEvidence({
   trace: { provider: string; dataset: string; traceId: string };
 }) {
   return (
-    <div className="trace">
-      <Link2 size={16} aria-hidden="true" />
-      <div>
-        <strong>Trace reference</strong>
+    <details className="trace">
+      <summary>
+        <Link2 size={13} aria-hidden="true" /> Trace reference
+      </summary>
+      <div className="trace-content">
         <p>
           {trace.provider} / {trace.dataset}
         </p>
         <code>{trace.traceId}</code>
-        <small>
-          Reference only. Open this trace in your observability provider.
-        </small>
+        <small>Open this trace in your observability provider.</small>
+        <details>
+          <summary>Reference JSON</summary>
+          <Value value={trace} />
+        </details>
       </div>
-      <details>
-        <summary>Reference JSON</summary>
-        <Value value={trace} />
-      </details>
-    </div>
+    </details>
   );
 }

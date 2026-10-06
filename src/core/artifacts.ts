@@ -24,3 +24,21 @@ export async function decodeArtifact(
   if (digest !== body.sha256) throw new Error("Artifact digest mismatch.");
   return bytes;
 }
+
+export type ArtifactIndex = ReadonlyMap<
+  string,
+  ReadonlyMap<string, Bundle["artifacts"][number]>
+>;
+
+export function indexArtifacts(bodies: Bundle["artifacts"]): ArtifactIndex {
+  const runs = new Map<string, Map<string, Bundle["artifacts"][number]>>();
+  for (const body of bodies) {
+    let artifacts = runs.get(body.runId);
+    if (!artifacts) {
+      artifacts = new Map();
+      runs.set(body.runId, artifacts);
+    }
+    artifacts.set(body.artifactId, body);
+  }
+  return runs;
+}

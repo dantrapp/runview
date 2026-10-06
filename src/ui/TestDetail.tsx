@@ -1,13 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowRight, ChevronRight, Clock3 } from "lucide-react";
 import { artifacts, assertions, latest } from "../core/evidence.ts";
-import type { Bundle } from "../core/evidence.ts";
-import {
-  compareAssertions,
-  expectation,
-  observation,
-} from "../core/compare.ts";
+import type { ArtifactIndex } from "../core/artifacts.ts";
+import { expectation, observation } from "../core/compare.ts";
 import type { AssertionDelta, TestDelta } from "../core/compare.ts";
+import { attemptAssertions } from "./review.ts";
 import { ArtifactEvidence, TraceEvidence } from "./Evidence.tsx";
 import { Changes, duration, Status, Value } from "./shared.tsx";
 
@@ -66,44 +63,81 @@ function AssertionRow({ delta }: { delta: AssertionDelta }) {
               {duration(assertion.durationMs)}
             </span>
           </div>
-          <div className="value-grid">
-            <section>
-              <h4>
-                {delta.after ? "Current expectation" : "Baseline expectation"}
-              </h4>
-              <Value value={expectation(assertion)} />
-            </section>
-            <section>
-              <h4>
-                {delta.after ? "Current observation" : "Baseline observation"}
-              </h4>
-              <Value value={observation(assertion)} />
-            </section>
-          </div>
+          {delta.before &&
+          delta.after &&
+          (delta.changes.includes("expectation") ||
+            delta.changes.includes("operation")) ? (
+            <>
+              <div className="value-grid comparison-values">
+                <section>
+                  <h4>Before · expected</h4>
+                  <Value value={expectation(delta.before)} />
+                </section>
+                <section>
+                  <h4>Current · expected</h4>
+                  <Value value={expectation(delta.after)} />
+                </section>
+              </div>
+              <details className="previous">
+                <summary>Recorded results</summary>
+                <div className="value-grid">
+                  <section>
+                    <h4>Before · actual</h4>
+                    <Value value={observation(delta.before)} />
+                  </section>
+                  <section>
+                    <h4>Current · actual</h4>
+                    <Value value={observation(delta.after)} />
+                  </section>
+                </div>
+              </details>
+            </>
+          ) : (
+            <>
+              <div className="value-grid">
+                <section>
+                  <h4>
+                    {delta.after ? "Current · expected" : "Before · expected"}
+                  </h4>
+                  <Value value={expectation(assertion)} />
+                </section>
+                <section>
+                  <h4>
+                    {delta.after ? "Current · actual" : "Before · actual"}
+                  </h4>
+                  <Value value={observation(assertion)} />
+                </section>
+              </div>
+              {delta.before && delta.after && (
+                <details className="previous">
+                  <summary>
+                    Before <ArrowRight size={12} aria-hidden="true" />
+                  </summary>
+                  <div className="value-grid">
+                    <section>
+                      <h4>Expected</h4>
+                      <Value value={expectation(delta.before)} />
+                    </section>
+                    <section>
+                      <h4>Actual</h4>
+                      <Value value={observation(delta.before)} />
+                    </section>
+                  </div>
+                </details>
+              )}
+            </>
+          )}
           {delta.changes.includes("expectation") && (
             <p className="muted">
-              Expected operands differ. Generated IDs, timestamps, and fixture
-              values can change between healthy runs; this alone does not
-              establish a changed test rule.
+              Expected values changed. Generated IDs and timestamps can differ
+              between runs without a change to the test.
             </p>
           )}
           {delta.changes.includes("operation") && (
             <p className="muted">
-              Recorded operation: <code>{delta.before?.operation._tag}</code> →{" "}
-              <code>{delta.after?.operation._tag}</code>. Compare both
-              expectations before accepting the result.
+              Check changed: <code>{delta.before?.operation._tag}</code> →{" "}
+              <code>{delta.after?.operation._tag}</code>.
             </p>
-          )}
-          {delta.before && delta.after && (
-            <details className="previous">
-              <summary>
-                Baseline values <ArrowRight size={12} aria-hidden="true" />
-              </summary>
-              <div className="value-grid">
-                <Value value={expectation(delta.before)} />
-                <Value value={observation(delta.before)} />
-              </div>
-            </details>
           )}
           {failure && (
             <div className="failure">
@@ -129,24 +163,36 @@ function AssertionRow({ delta }: { delta: AssertionDelta }) {
 
 export function TestDetail({
   test,
-  bundle,
+  artifactBodies,
+  comparisonEnabled = false,
 }: {
   test: TestDelta;
-  bundle: Bundle;
+  artifactBodies: ArtifactIndex;
+  comparisonEnabled?: boolean;
 }) {
   const newest = latest(test.after);
   const [attempt, setAttempt] = useState(newest?.id);
   const execution =
     test.after?.executions.find((e) => e.id === attempt) ?? newest;
   const previousAttempt = execution?.id !== newest?.id;
-  const deltas = previousAttempt
-    ? compareAssertions(latest(test.before), execution)
-    : test.assertions;
+  const deltas = useMemo((): AssertionDelta[] => {
+    if (!previousAttempt) return test.assertions;
+    return attemptAssertions(test.before, execution, comparisonEnabled);
+  }, [previousAttempt, comparisonEnabled, test, execution]);
+  const [showAllAssertions, setShowAllAssertions] = useState(false);
+  const flagged = useMemo(
+    () =>
+      deltas.filter(
+        (delta) =>
+          delta.changes.length > 0 || delta.after?.outcome._tag === "Failed",
+      ),
+    [deltas],
+  );
+  const visible = showAllAssertions || flagged.length === 0 ? deltas : flagged;
   const refs = artifacts(execution);
   return (
     <section className="test-detail" aria-label="Test evidence">
       <header className="detail-header">
-        <div className="eyebrow">TEST EVIDENCE</div>
         <h2>{test.name}</h2>
         <div className="detail-meta">
           <Status status={execution?.status} />
@@ -160,7 +206,10 @@ export function TestDetail({
             Attempt
             <select
               value={execution?.id}
-              onChange={(event) => setAttempt(event.target.value)}
+              onChange={(event) => {
+                setAttempt(event.target.value);
+                setShowAllAssertions(false);
+              }}
             >
               {test.after?.executions
                 .toSorted((a, b) => b.attempt - a.attempt)
@@ -190,34 +239,47 @@ export function TestDetail({
       <div className="detail-content">
         <div className="section-label">
           <h3>Assertions</h3>
-          <span>{deltas.length} recorded or compared</span>
+          {flagged.length > 0 && flagged.length < deltas.length ? (
+            <div className="filters" aria-label="Assertion filter">
+              <button
+                aria-pressed={!showAllAssertions}
+                onClick={() => setShowAllAssertions(false)}
+              >
+                To review <span>{flagged.length}</span>
+              </button>
+              <button
+                aria-pressed={showAllAssertions}
+                onClick={() => setShowAllAssertions(true)}
+              >
+                All <span>{deltas.length}</span>
+              </button>
+            </div>
+          ) : (
+            <span>{deltas.length} recorded or compared</span>
+          )}
         </div>
         {deltas.length === 0 ? (
           <div className="empty compact">
             No assertion evidence in this execution.
           </div>
         ) : (
-          deltas.map((delta) => (
+          visible.map((delta) => (
             <AssertionRow key={`${execution?.id}:${delta.key}`} delta={delta} />
           ))
         )}
-        <div className="section-label lower">
-          <h3>Artifacts</h3>
-          <span>{refs.length} references</span>
-        </div>
-        {refs.length > 0 ? (
-          refs.map((ref) => (
-            <ArtifactEvidence
-              key={ref.id}
-              reference={ref}
-              body={bundle.artifacts.find(
-                (body) =>
-                  body.runId === ref.runId && body.artifactId === ref.id,
-              )}
-            />
-          ))
-        ) : (
-          <p className="muted">No artifacts recorded.</p>
+        {refs.length > 0 && (
+          <details className="supporting-evidence">
+            <summary>
+              Saved files <span>{refs.length}</span>
+            </summary>
+            {refs.map((ref) => (
+              <ArtifactEvidence
+                key={ref.id}
+                reference={ref}
+                body={artifactBodies.get(ref.runId)?.get(ref.id)}
+              />
+            ))}
+          </details>
         )}
         {execution &&
           "trace" in execution &&
