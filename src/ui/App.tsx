@@ -21,6 +21,53 @@ import { Changes, download, duration, Status, time } from "./shared.tsx";
 
 const upstreamProbe = parseEvidence(JSON.stringify(upstreamProbeData));
 
+function MetricCard({
+  label,
+  value,
+  baseline,
+  description,
+  tone = "",
+}: {
+  label: string;
+  value: number;
+  baseline?: number;
+  description: string;
+  tone?: string;
+}) {
+  const scale = Math.max(value, baseline ?? 0, 1);
+  return (
+    <section className={`metric-card ${tone}`} aria-label={label}>
+      <h3>{label}</h3>
+      <strong className="metric-value">{value}</strong>
+      <p>{description}</p>
+      <div className="metric-bars">
+        {baseline !== undefined && (
+          <div className="metric-bar-row">
+            <span>Before</span>
+            <div className="metric-track">
+              <div
+                className="metric-bar before"
+                style={{ width: `${(baseline / scale) * 100}%` }}
+              />
+            </div>
+            <strong>{baseline}</strong>
+          </div>
+        )}
+        <div className="metric-bar-row">
+          <span>{baseline !== undefined ? "After" : "Current"}</span>
+          <div className="metric-track">
+            <div
+              className="metric-bar after"
+              style={{ width: `${(value / scale) * 100}%` }}
+            />
+          </div>
+          <strong>{value}</strong>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function App() {
   const [bundle, setBundle] = useState<Bundle>(demo);
   const [origin, setOrigin] = useState<"sample" | "probe" | "imported">(
@@ -46,6 +93,11 @@ export function App() {
     [baseline, current],
   );
   const summary = useMemo(() => summarize(current.run), [current]);
+  const baselineSummary = useMemo(
+    () =>
+      baseline && comparison.comparable ? summarize(baseline.run) : undefined,
+    [baseline, comparison.comparable],
+  );
   const reviewCount = comparison.tests.filter(needsReview).length;
   const filtered = comparison.tests.filter(
     (test) =>
@@ -236,9 +288,11 @@ export function App() {
           <div className="overview-title">
             <div>
               <div className="eyebrow">RUN COMPARISON</div>
-              <h1>What changed?</h1>
+              <h1>
+                Run <span>comparison</span>
+              </h1>
               <p className="subtitle">
-                Review the result. Inspect the evidence.
+                Compare results, then open a test to inspect its evidence.
               </p>
             </div>
             <Status status={current.run.status} />
@@ -280,27 +334,60 @@ export function App() {
               </strong>
             </div>
           </div>
+          <div className="metrics-heading">
+            <h2>At a glance</h2>
+            {baselineSummary && (
+              <div className="comparison-legend" aria-label="Chart legend">
+                <span>
+                  <i className="before" /> Before
+                </span>
+                <span>
+                  <i className="after" /> After
+                </span>
+              </div>
+            )}
+          </div>
           <div className="metrics">
-            <div>
-              <strong>{summary.total}</strong>
-              <span>Tests</span>
-            </div>
-            <div className="green">
-              <strong>{summary.passed}</strong>
-              <span>Passed</span>
-            </div>
-            <div className={summary.failed ? "red" : ""}>
-              <strong>{summary.failed}</strong>
-              <span>Failed</span>
-            </div>
-            <div>
-              <strong>{summary.incomplete}</strong>
-              <span>Incomplete / skipped</span>
-            </div>
-            <div className={reviewCount ? "amber" : ""}>
-              <strong>{reviewCount}</strong>
-              <span>To review</span>
-            </div>
+            <MetricCard
+              label="Tests"
+              value={summary.total}
+              baseline={baselineSummary?.total}
+              description="Tests recorded in each run."
+            />
+            <MetricCard
+              label="Passed"
+              value={summary.passed}
+              baseline={baselineSummary?.passed}
+              description="Latest attempt reported a pass."
+              tone="green"
+            />
+            <MetricCard
+              label="Failed"
+              value={summary.failed}
+              baseline={baselineSummary?.failed}
+              description="Latest attempt reported a failure."
+              tone={summary.failed ? "red" : ""}
+            />
+            <MetricCard
+              label="Incomplete / skipped"
+              value={summary.incomplete}
+              baseline={baselineSummary?.incomplete}
+              description="Tests without a completed pass or failure."
+            />
+            <MetricCard
+              label="Assertions"
+              value={summary.assertions}
+              baseline={baselineSummary?.assertions}
+              description="Recorded checks across latest attempts."
+            />
+            <section className="metric-card review-card" aria-label="To review">
+              <h3>To review</h3>
+              <strong className="metric-value">{reviewCount}</strong>
+              <p>Changes, failures, retries, or incomplete results.</p>
+              <a href="#tests" onClick={() => setFilter("review")}>
+                Review tests <ArrowRight size={16} aria-hidden="true" />
+              </a>
+            </section>
           </div>
           <SourceEvidence entry={current} />
         </section>
@@ -322,7 +409,7 @@ export function App() {
             </ul>
           </details>
         )}
-        <div className="workbench">
+        <div className="workbench" id="tests">
           <section className="test-list" aria-label="Tests">
             <div className="list-toolbar">
               <div className="filters">
